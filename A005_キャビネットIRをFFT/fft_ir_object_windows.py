@@ -6,13 +6,14 @@ from matplotlib.ticker import EngFormatter, MultipleLocator
 
 
 class ImpulseResponsePlotter:
-    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names, fft_size=2**18):
+    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names, fft_size=2**18, smoothing=None):
         self.original_data = original_data
         self.adjusted_data = adjusted_data
         self.rates = rates
         self.time_axes = time_axes
         self.file_names = file_names
         self.fft_size = fft_size  # FFTサイズ（ゼロパディング後）
+        self.smoothing = smoothing  # スムージング (None, 1/3, 1/6, 1/12, 1/24, 1/48)
 
     def plot(self, mode='original'):  # modeを追加して波形の種類を選択
         fig, axs = plt.subplots(2, 1, figsize=(15, 8))
@@ -45,6 +46,44 @@ class ImpulseResponsePlotter:
             ax.plot(self.time_axes[i], data, label=self.file_names[i])
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize='small')  # 凡例の設定
 
+    def _apply_octave_smoothing(self, freqs, magnitude_db, octave_fraction):
+        """
+        オクターブバンドスムージングを適用
+
+        Parameters:
+        freqs: 周波数配列
+        magnitude_db: マグニチュード（dB）配列
+        octave_fraction: オクターブバンドの分数（例: 3 -> 1/3 octave）
+
+        Returns:
+        smoothed_magnitude_db: スムージング後のマグニチュード配列
+        """
+        smoothed = np.zeros_like(magnitude_db)
+
+        for i, f_center in enumerate(freqs):
+            if f_center <= 0:  # 0 Hz はスキップ
+                smoothed[i] = magnitude_db[i]
+                continue
+
+            # オクターブバンドの下限と上限を計算
+            # 1/N オクターブバンド: f_low = f / 2^(1/(2*N)), f_high = f * 2^(1/(2*N))
+            bandwidth_factor = 2 ** (1 / (2 * octave_fraction))
+            f_low = f_center / bandwidth_factor
+            f_high = f_center * bandwidth_factor
+
+            # 範囲内の周波数のインデックスを取得
+            indices = np.where((freqs >= f_low) & (freqs <= f_high))[0]
+
+            # 範囲内の平均を計算（dB値なので線形変換して平均、その後dBに戻す）
+            if len(indices) > 0:
+                linear_values = 10 ** (magnitude_db[indices] / 20)
+                avg_linear = np.mean(linear_values)
+                smoothed[i] = 20 * np.log10(avg_linear)
+            else:
+                smoothed[i] = magnitude_db[i]
+
+        return smoothed
+
     def _plot_fft(self, ax): # インパルス応答のFFTプロット
 
         # グラフにプロットする周波数範囲
@@ -53,12 +92,22 @@ class ImpulseResponsePlotter:
 
         # FFT分解能を計算して表示（最初のファイルのサンプリングレートで計算）
         fft_resolution = self.rates[0] / self.fft_size
+
+        # スムージング情報の文字列を作成
+        if self.smoothing is None:
+            smoothing_str = "無し"
+            smoothing_title = "No Smoothing"
+        else:
+            smoothing_str = f"1/{self.smoothing} octave"
+            smoothing_title = f"1/{self.smoothing} oct"
+
         print(f"\n=== FFT解析情報 ===")
         print(f"FFTサイズ: {self.fft_size:,} サンプル")
         print(f"FFT分解能: {fft_resolution:.4f} Hz")
+        print(f"スムージング: {smoothing_str}")
         print(f"=================\n")
 
-        ax.set_title(f'FFT of Impulse Responses (Resolution: {fft_resolution:.4f} Hz)')  # タイトル
+        ax.set_title(f'FFT of Impulse Responses (Resolution: {fft_resolution:.4f} Hz, {smoothing_title})')  # タイトル
         ax.set_xlabel('Frequency (Hz)')  # x軸ラベル
         ax.set_ylabel('Magnitude (dB)')  # y軸ラベル
         ax.set_xscale('log')  # x軸を対数スケールに設定
@@ -91,6 +140,10 @@ class ImpulseResponsePlotter:
 
             max_in_range = np.max(fft_magnitude[valid_indices])  # 周波数範囲内の最大値で正規化
             fft_magnitude_db = 20 * np.log10(fft_magnitude / max_in_range)  # デシベル変換
+
+            # スムージングを適用
+            if self.smoothing is not None:
+                fft_magnitude_db = self._apply_octave_smoothing(freqs, fft_magnitude_db, self.smoothing)
 
             ax.plot(freqs, fft_magnitude_db, label=self.file_names[i])  # データのプロット
 
@@ -148,6 +201,11 @@ for i, data in enumerate(original_data):
 
 # 描画
 # FFTサイズを変更する場合は fft_size パラメータを指定 (デフォルト: 2^18 = 262144)
-# 例: plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, fft_size=2**16)
+# スムージングを適用する場合は smoothing パラメータを指定
+# smoothing オプション: None (無し), 3 (1/3 oct), 6 (1/6 oct), 12 (1/12 oct), 24 (1/24 oct), 48 (1/48 oct)
+# 例:
+#   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, fft_size=2**16)
+#   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, smoothing=3)  # 1/3 octave
+#   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, smoothing=12)  # 1/12 octave
 plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x)
 plotter.plot(mode='original')  # 'original' または 'adjusted' を指定
