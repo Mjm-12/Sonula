@@ -6,12 +6,13 @@ from matplotlib.ticker import EngFormatter, MultipleLocator
 
 
 class ImpulseResponsePlotter:
-    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names):
+    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names, fft_size=2**18):
         self.original_data = original_data
         self.adjusted_data = adjusted_data
         self.rates = rates
         self.time_axes = time_axes
         self.file_names = file_names
+        self.fft_size = fft_size  # FFTサイズ（ゼロパディング後）
 
     def plot(self, mode='original'):  # modeを追加して波形の種類を選択
         fig, axs = plt.subplots(2, 1, figsize=(15, 8))
@@ -50,7 +51,14 @@ class ImpulseResponsePlotter:
         min_freq = 20  # 最小周波数
         max_freq = 20000  # 最大周波数
 
-        ax.set_title('FFT of Impulse Responses')  # タイトル
+        # FFT分解能を計算して表示（最初のファイルのサンプリングレートで計算）
+        fft_resolution = self.rates[0] / self.fft_size
+        print(f"\n=== FFT解析情報 ===")
+        print(f"FFTサイズ: {self.fft_size:,} サンプル")
+        print(f"FFT分解能: {fft_resolution:.4f} Hz")
+        print(f"=================\n")
+
+        ax.set_title(f'FFT of Impulse Responses (Resolution: {fft_resolution:.4f} Hz)')  # タイトル
         ax.set_xlabel('Frequency (Hz)')  # x軸ラベル
         ax.set_ylabel('Magnitude (dB)')  # y軸ラベル
         ax.set_xscale('log')  # x軸を対数スケールに設定
@@ -60,21 +68,38 @@ class ImpulseResponsePlotter:
         ax.grid(True, which='both', linestyle='-')  # メジャー＆マイナーグリッド線
         formatter = EngFormatter(unit='', sep='')  # 工学形式のフォーマッタ
         ax.xaxis.set_major_formatter(formatter)  # x軸フォーマットの設定
-    
+
         # FFTを実行しグラフにプロット
         for i, data in enumerate(self.original_data):
-            N = len(data)
-            fft_result = np.fft.fft(data)
-            freqs = np.fft.fftfreq(N, 1 / self.rates[i])[:N // 2]
-            fft_magnitude = np.abs(fft_result)[:N // 2] # 絶対値を取得
-        
+            N_original = len(data)
+
+            # ゼロパディングを適用
+            if N_original < self.fft_size:
+                # データの末尾にゼロを追加してFFTサイズまで拡張
+                padded_data = np.pad(data, (0, self.fft_size - N_original), mode='constant')
+            else:
+                # データがFFTサイズより大きい場合は切り詰め
+                padded_data = data[:self.fft_size]
+
+            # ゼロパディング後のFFT実行
+            fft_result = np.fft.fft(padded_data)
+            freqs = np.fft.fftfreq(self.fft_size, 1 / self.rates[i])[:self.fft_size // 2]
+            fft_magnitude = np.abs(fft_result)[:self.fft_size // 2] # 絶対値を取得
+
             # 指定周波数範囲内のインデックスを取得
             valid_indices = np.logical_and(freqs >= min_freq, freqs <= max_freq)
-        
+
             max_in_range = np.max(fft_magnitude[valid_indices])  # 周波数範囲内の最大値で正規化
             fft_magnitude_db = 20 * np.log10(fft_magnitude / max_in_range)  # デシベル変換
-        
+
             ax.plot(freqs, fft_magnitude_db, label=self.file_names[i])  # データのプロット
+
+            # 各ファイルのFFT情報を出力
+            print(f"ファイル: {self.file_names[i]}")
+            print(f"  元のサンプル数: {N_original:,}")
+            print(f"  サンプリングレート: {self.rates[i]:,} Hz")
+            print(f"  FFT分解能: {self.rates[i] / self.fft_size:.4f} Hz")
+
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize='small')  # 凡例の設定
 
 # データを保持するリスト
@@ -122,5 +147,7 @@ for i, data in enumerate(original_data):
     adjusted_data.append(adjusted)
 
 # 描画
+# FFTサイズを変更する場合は fft_size パラメータを指定 (デフォルト: 2^18 = 262144)
+# 例: plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, fft_size=2**16)
 plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x)
 plotter.plot(mode='original')  # 'original' または 'adjusted' を指定
