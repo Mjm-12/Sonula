@@ -6,7 +6,7 @@ from matplotlib.ticker import EngFormatter, MultipleLocator
 
 
 class ImpulseResponsePlotter:
-    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names, fft_size=2**18, smoothing=None):
+    def __init__(self, original_data, adjusted_data, rates, time_axes, file_names, fft_size=2**18, smoothing=None, fft_time_length=None):
         self.original_data = original_data
         self.adjusted_data = adjusted_data
         self.rates = rates
@@ -14,6 +14,7 @@ class ImpulseResponsePlotter:
         self.file_names = file_names
         self.fft_size = fft_size  # FFTサイズ（ゼロパディング後）
         self.smoothing = smoothing  # スムージング (None, 1/3, 1/6, 1/12, 1/24, 1/48)
+        self.fft_time_length = fft_time_length  # FFTに使用する時間長（秒）、Noneの場合は全データ使用
 
     def plot(self, mode='original'):  # modeを追加して波形の種類を選択
         fig, axs = plt.subplots(2, 1, figsize=(15, 8))
@@ -119,16 +120,34 @@ class ImpulseResponsePlotter:
         ax.xaxis.set_major_formatter(formatter)  # x軸フォーマットの設定
 
         # FFTを実行しグラフにプロット
+        # FFT情報を格納（グラフ下に表示するため）
+        fft_info_list = []
+
         for i, data in enumerate(self.original_data):
             N_original = len(data)
 
+            # FFT用のデータを準備（時間長指定がある場合はトリミング）
+            if self.fft_time_length is not None:
+                # 指定された時間長に対応するサンプル数を計算
+                N_time_limited = int(self.fft_time_length * self.rates[i])
+                # 元のデータより短い場合のみトリミング
+                if N_time_limited < N_original:
+                    data_for_fft = data[:N_time_limited]
+                else:
+                    data_for_fft = data
+            else:
+                data_for_fft = data
+
+            N_actual = len(data_for_fft)  # 実際にFFTに使用するサンプル数（ゼロパディング前）
+
             # ゼロパディングを適用
-            if N_original < self.fft_size:
+            if N_actual < self.fft_size:
                 # データの末尾にゼロを追加してFFTサイズまで拡張
-                padded_data = np.pad(data, (0, self.fft_size - N_original), mode='constant')
+                padded_data = np.pad(data_for_fft, (0, self.fft_size - N_actual), mode='constant')
             else:
                 # データがFFTサイズより大きい場合は切り詰め
-                padded_data = data[:self.fft_size]
+                padded_data = data_for_fft[:self.fft_size]
+                N_actual = self.fft_size
 
             # ゼロパディング後のFFT実行
             fft_result = np.fft.fft(padded_data)
@@ -147,13 +166,45 @@ class ImpulseResponsePlotter:
 
             ax.plot(freqs, fft_magnitude_db, label=self.file_names[i])  # データのプロット
 
-            # 各ファイルのFFT情報を出力
+            # FFT情報を収集
+            actual_time_length = N_actual / self.rates[i]  # 実際のFFT時間長（秒）
+            nyquist_freq = self.rates[i] / 2  # ナイキスト周波数
+            fft_resolution = self.rates[i] / self.fft_size  # FFT分解能
+
+            fft_info_list.append({
+                'file_name': self.file_names[i],
+                'N_original': N_original,
+                'N_actual': N_actual,
+                'sample_rate': self.rates[i],
+                'actual_time_length': actual_time_length,
+                'nyquist_freq': nyquist_freq,
+                'fft_resolution': fft_resolution
+            })
+
+            # 各ファイルのFFT情報をコンソール出力
             print(f"ファイル: {self.file_names[i]}")
             print(f"  元のサンプル数: {N_original:,}")
+            print(f"  FFT使用サンプル数: {N_actual:,} ({actual_time_length*1000:.2f} ms)")
             print(f"  サンプリングレート: {self.rates[i]:,} Hz")
-            print(f"  FFT分解能: {self.rates[i] / self.fft_size:.4f} Hz")
+            print(f"  ナイキスト周波数: {nyquist_freq:,} Hz")
+            print(f"  FFT分解能: {fft_resolution:.4f} Hz")
 
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize='small')  # 凡例の設定
+
+        # グラフの下にFFT情報を表示（最初のファイルの情報を代表として表示）
+        if fft_info_list:
+            info = fft_info_list[0]
+            info_text = (
+                f"FFT情報: "
+                f"サンプリングレート: {info['sample_rate']:,} Hz | "
+                f"FFT使用サンプル数: {info['N_actual']:,} ({info['actual_time_length']*1000:.2f} ms) | "
+                f"FFTサイズ: {self.fft_size:,} | "
+                f"分解能: {info['fft_resolution']:.4f} Hz | "
+                f"ナイキスト周波数: {info['nyquist_freq']:,} Hz"
+            )
+            ax.text(0.5, -0.15, info_text, transform=ax.transAxes,
+                   fontsize=9, ha='center', va='top',
+                   bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
 # データを保持するリスト
 original_data = []
@@ -200,12 +251,17 @@ for i, data in enumerate(original_data):
     adjusted_data.append(adjusted)
 
 # 描画
-# FFTサイズを変更する場合は fft_size パラメータを指定 (デフォルト: 2^18 = 262144)
-# スムージングを適用する場合は smoothing パラメータを指定
-# smoothing オプション: None (無し), 3 (1/3 oct), 6 (1/6 oct), 12 (1/12 oct), 24 (1/24 oct), 48 (1/48 oct)
+# パラメータ:
+#   fft_size: FFTサイズ (デフォルト: 2^18 = 262144)
+#   smoothing: スムージング (None, 3, 6, 12, 24, 48) -> 1/N octave
+#   fft_time_length: FFTに使用する時間長（秒）、Noneの場合は全データ使用
+#
 # 例:
 #   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, fft_size=2**16)
 #   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, smoothing=3)  # 1/3 octave
 #   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, smoothing=12)  # 1/12 octave
+#   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x, fft_time_length=0.01)  # 10ms
+#   plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x,
+#                                    fft_size=2**16, smoothing=6, fft_time_length=0.02)  # 複数指定
 plotter = ImpulseResponsePlotter(original_data, adjusted_data, rates, time_axes, file_name_x)
 plotter.plot(mode='original')  # 'original' または 'adjusted' を指定
