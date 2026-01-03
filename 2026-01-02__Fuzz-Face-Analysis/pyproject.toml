@@ -1,0 +1,22 @@
+[project]
+name = "fuzz-face-analysis"
+version = "0.1.0"
+description = "Fuzz Face circuit analysis and schematic drawing"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "schemdraw>=0.19.1",
+    "matplotlib>=3.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.1.0",
+]
