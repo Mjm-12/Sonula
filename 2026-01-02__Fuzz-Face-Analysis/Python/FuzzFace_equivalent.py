@@ -1,7 +1,11 @@
 import schemdraw
 import schemdraw.elements as elm
+import matplotlib
+matplotlib.use('Agg')  # GUIを使わず、ファイル保存のみ行う
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
+import warnings
+warnings.filterwarnings('ignore', message='.*non-interactive.*')
 
 from schemdraw import elements as elm
 from schemdraw.segments import Segment, SegmentCircle
@@ -90,6 +94,22 @@ class Pot(Res):
             arrow='->', arrowwidth=self.params['arrowwidth'],
             arrowlength=self.params['arrowlength']))
         
+class Var(Res):
+    _element_defaults = {
+        'arrowwidth': .12,
+        'arrowlength': .2,
+        'arrow_lw': None,
+        'arrow_color': None,
+        }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.segments.append(
+            Segment([(.75*resw, -resh*1.5), (5.25*resw, resw*2.5)],
+            arrow='->', arrowwidth=self.params['arrowwidth'],
+            arrowlength=self.params['arrowlength'],
+            lw=self.params['arrow_lw'],
+            color=self.params['arrow_color']
+            ))
 # =========================
 
 
@@ -97,67 +117,96 @@ with schemdraw.Drawing() as d:
     d.config(fontsize=font_size, font=font_name, lw=1.25) 
     
     # 入力
-    IN = elm.Dot(open=True).label('Input', loc='left')
-    L1 = elm.Line().right(2)
-    elm.Line().down(2).dot()
+    IN = elm.Dot(open=True).label('input', loc='left')
+    L1 = elm.Line().right(2).dot()
     Rie1 = Res().down(3).label('$r_{ie1}$',loc='bottom')
-    elm.GroundSignal(lead=False)
+    Lie1 = elm.Line().right(1.5).dot()
 
-    elm.Gap().right(3.5).at(L1.end)
-    elm.GroundSignal(lead=False)
+    # Q1周辺
+    Lg1 = elm.Line().down(2).at(Lie1.end).dot()
+    elm.Line().left().tox(IN.start)
+    INg = elm.Dot(open=True)
+
+    elm.Line().right(1.5).at(Lie1.end)
     elm.SourceI().reverse().label('$h_{fe1} \\cdot i_{b1}$',color='red')
-    elm.Line().right(3).dot()
-    Lc1 = elm.Line().down(1)
+
+    # コレクタ
+    elm.Line().right(2).dot()
+    Lc1 = elm.Line().down(2)
     Rc1 = Res().down(1).label('$R_{C1}$',loc='bottom')
-    elm.Line().down(1)
-    elm.GroundSignal(lead=False)
-    elm.Line().right(3).at(Lc1.start).dot()
-    Lie2 = elm.Line().down(1)
-    Rie2 = Res().down(1).label('$R_{ie2}$',loc='bottom')
-    elm.Line().down(1)
-    elm.GroundSignal(lead=False)
+    elm.Line().down(2)
+    Lg2 = elm.Line().left().tox(Lg1.start).dot()
 
-    elm.Line().right(5).at(Rie1.start)
-    Rf = Res().right(3).label('$R_F$',loc='bottom')
-    elm.Line().right(5).dot()
-    Re2 = Res().down(3).label('$R_{e2}$',loc='bottom')
-    elm.GroundSignal(lead=False)
+    # Q2周辺
+    Lie2 = elm.Line().right(3).at(Lc1.start).dot()
+    Rie2 = Res().down(3).label('$r_{ie2}$',loc='bottom')
+    Lie2g = elm.Line().right(1.5).dot()
+    Re2 = Var().down().toy(INg.start).label('$R_{e2}$',loc='bottom',ofst=(.3,-.25)).reverse()
+    Lg3 = elm.Line().left().tox(Lg2.start).dot()
 
-    elm.Line().up(3).at(Re2.start).toy(Rie2.end)
-    elm.SourceI().up(3).reverse().dot().label('$h_{fe2} \\cdot i_{b2}$',color='red')
-    elm.Line().right(3).dot()
-    Rc2 = Res().down(3).label('$R_{C2}$',loc='bottom')
-    elm.GroundSignal(lead=False)
+    elm.Line().right(1.5).at(Lie2g.end).dot()
+    Cr2 = elm.SourceI().up(2).reverse().label('$h_{fe2} \\cdot i_{b2}$',color='red')
 
-    elm.Line().right(2).at(Rc2.start)
-    OUT = elm.Dot(open=True).label('out',loc='top')
+    # 出力
+    elm.Line().right(4).dot().at(Cr2.end)
+    Rc2 = Res().down().toy(INg.start).label('$R_{S}$\n$= R_{C2}//RV_{2}$',loc='bottom').dot()
+    Lg4 = elm.Line().left().tox(Lg3.start).dot()
+
+    elm.Line().right(3).at(Rc2.start)
+    OUT = elm.Dot(open=True).label('output',loc='right')
+    Lg5 = elm.Line().right().at(Lg4.start).tox(OUT.start)
+    OUTg = elm.Dot(open=True)
+
+    #フィードバック
+    elm.Line().right(1.5).at(Cr2.start)
+    elm.Line().up(6)
+    Rf = Res().left().label('$R_F$',loc='bottom').tox(L1.end)
+    elm.Line().down().toy(L1.end)
+
+    # ==========================
 
     # Current Label
     elm.CurrentLabel(length=1).at(L1).label('$i_1$',ofst=-.15).color('red')
     elm.CurrentLabel(length=1,ofst=-.6).at(Rie1).label('$i_{b1}$',loc='top',ofst=-.1).color('red')
-    elm.CurrentLabel(length=1, ofst=.3).at(Lc1).label('$i_{c1}$',ofst=-.1).color('red')
-    elm.CurrentLabel(length=1, ofst=.3).at(Lie2).label('$i_{ie2}$',ofst=-.1).color('red')
-    elm.CurrentLabel(length=1).at(Rf).label('$i_f$',ofst=-.1).color('red').reverse()
-    elm.CurrentLabel(length=1,ofst=-.6).at(Re2).label('$i_{e2}$',loc='top',ofst=-.1).color('red')
+    elm.CurrentLabel(length=1, ofst=.3).at(Lc1).label('$i_{c1}$',ofst=-.1).color('red').reverse
+    elm.CurrentLabel(length=1, ofst=.3).at(Lie2).label('$i_{b2}$',ofst=-.1).color('red')
+    elm.CurrentLabel(length=1, ofst=-.6).at(Rf).label('$i_f$',ofst= -.65).color('red')
+    elm.CurrentLabel(length=1,ofst=-1.2).at(Re2).label('$i_{e2}$',loc='top',ofst=-.1).color('red').reverse()
     elm.CurrentLabel(length=1,ofst=-.6).at(Rc2).label('$i_{c2}$',loc='top',ofst=-.1).color('red')
 
-    # Voltage Label
-    Gin = elm.Gap().at(L1.start).toy(Rie1.end)
-    elm.GroundSignal(lead=False).color('blue')
-    elm.VoltageLabelArc(length=4.8).at(Gin).label('$v_1$').reverse().color('blue')
+    # 入力電圧
+    label_gap = 0.6
+    in_top = IN.start
+    in_bottom = INg.start
+    l_in = abs(in_top.y - in_bottom.y)
+    elm.Line().up(0.2).at(INg.start).color('white')
+    elm.Line(lw=1).up(l_in/2 - 0.2 - label_gap/2).color('blue')
+    elm.Line().up(label_gap).color('white')
+    elm.Line(arrow='=>',lw=1).up(l_in/2 - 0.2 - label_gap/2).color('blue')
+    elm.Line().toy(IN.start).color('white')
+    elm.Gap().at(IN.start).toy(INg.start).label('$v_{in}$').color('blue')
 
-    """
-    # 電流ラベル
-    elm.CurrentLabel(length=1, ofst=0.3).at(LB1).label('$I_{B1}$')
-    elm.CurrentLabel(length=1.25, ofst=0.3).at(LE2).label('$I_{B2}$')
-    elm.CurrentLabel(length=1.25, ofst=0.3).at(L2e).label('$I_{E2}$')
-
-    elm.CurrentLabel(top=False, length=1, ofst=0.3).at(R1).label('$I_{C1}+I_{B2}$').reverse()
+    # 出力電圧
+    out_top = OUT.start
+    out_bottom = OUTg.start
+    l_out = abs(out_top.y - out_bottom.y)
+    elm.Line().up(0.2).at(OUTg.start).color('white')
+    elm.Line(lw=1).up(l_out/2 - 0.2 - label_gap/2).color('blue')
+    elm.Line().length(label_gap).color('white')
+    elm.Line(arrow='=>',lw=1).up(l_out/2 - 0.2 - label_gap/2) .color('blue')
+    elm.Gap().at(OUT.start).toy(OUTg.start).label('$v_{out}$').color('blue')
 
     # 電圧ラベル
-    gap_EB1 = elm.Gap().at(Q1.emitter).to(Q1.base)
-    elm.VoltageLabelArc(length=1, ofst=.3).at(gap_EB1).label('$V_{BE}$')
-    """
+    elm.VoltageLabelArc(top=True,ofst=0.2,length=4,bend=1).at(Rf).reverse().label('$v_{f}$').color('blue')
+
+    Ge2 = elm.Gap().at(Rie2.start).toy(INg.start)
+    elm.VoltageLabelArc(top=False,ofst=0.4,length=4.5,bend=1.2).at(Ge2).color('blue').label('$v_{b2}$').reverse()
+
+    cur_2 = Cr2.start
+    l_Cr2 = abs(cur_2.y - in_bottom.y)
+    elm.Line().down(0.2).at(Cr2.start).color('white')
+    elm.Line(arrow="<=",lw=1).down(l_Cr2 - 0.4).color('blue').label('$v_{e2}$',loc='bottom',ofst=-.05)
+
 
 
     # 保存
