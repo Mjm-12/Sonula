@@ -153,7 +153,7 @@ with schemdraw.Drawing() as d:
     C2 = elm.Capacitor2(polar=True).down(1).label('$C_{E2}$',loc='bottom') # \n20μF
     elm.Line().tox(RV1.end).dot()
 
-    R4 = Res().at(RV1.start).tox(C1.end).label('$R_{f}$',loc='top') # .label('100k',loc='bottom')
+    R4 = Res().at(RV1.start).tox(C1.end).label('$R_{F}$',loc='top') # .label('100k',loc='bottom')
     elm.Line().toy(C1.end)
 
     C3 = elm.Capacitor().right(4).at(R2.start).label('$C_{out}$',loc='top') # .label('0.01μF',loc='bottom')

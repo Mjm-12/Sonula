@@ -13,9 +13,6 @@ from schemdraw.segments import Segment, SegmentCircle
 # -------------------------
 # フォントの読み込み
 
-# font_path_reg = 'Fonts/SourceSans3-Regular.ttf'
-# font_path_it  = 'Fonts/SourceSans3-Italic.ttf'
-
 font_path_reg = 'Fonts/Helvetica Neue LT Pro 55 Roman.otf'
 font_path_it  = 'Fonts/Helvetica Neue LT Pro 56 Italic.otf'
 
@@ -145,11 +142,12 @@ with schemdraw.Drawing() as d:
     Lg3 = elm.Line().left().tox(Lg2.start).dot()
 
     elm.Line().right(1.5).at(Lie2g.end).dot()
-    Cr2 = elm.SourceI().up(2).reverse().label('$h_{fe2} \\cdot i_{b2}$',color='red')
+    Cr2 = elm.SourceI().up(3).reverse().label('$h_{fe2} \\cdot i_{b2}$',color='red')
 
     # 出力
-    elm.Line().right(4).dot().at(Cr2.end)
-    Rc2 = Res().down().toy(INg.start).label('$R_{S}$',loc='bottom',fontsize=font_size,ofst=(-.2,.1)).label('$= R_{C2b}+R_{C2t}\\,//\\,RV_{2}$',loc='bottom',fontsize=font_size-2,ofst=(.2,.2)).dot()
+    elm.Line().right(4).at(Cr2.end)
+    Rc2b = Res().down(2.5).label('$R_{C2b}$',loc='bottom').dot()
+    Rc2 = Res().down().toy(INg.start).label('$R_{S}$',loc='bottom',fontsize=font_size,ofst=(-.2,.1)).label('$= R_{C2t}\\,//\\,RV_{2}$',loc='bottom',fontsize=font_size-2,ofst=(.2,.2)).dot()
     Lg4 = elm.Line().left().tox(Lg3.start).dot()
 
     elm.Line().right(4).at(Rc2.start)
@@ -173,6 +171,7 @@ with schemdraw.Drawing() as d:
     elm.CurrentLabel(length=1, ofst=-.6).at(Rf).label('$i_f$',ofst= -.65).color('red')
     elm.CurrentLabel(length=1,ofst=-1.2).at(Re2).label('$i_{e2}$',loc='top',ofst=-.1).color('red').reverse()
     elm.CurrentLabel(length=1,ofst=-.6).at(Rc2).label('$i_{c2}$',loc='top',ofst=-.1).color('red')
+    elm.CurrentLabel(length=1,ofst=-.6).at(Rc2b).label('$i_{c2}$',loc='top',ofst=-.1).color('red')
 
     # 入力電圧
     label_gap = 0.6
