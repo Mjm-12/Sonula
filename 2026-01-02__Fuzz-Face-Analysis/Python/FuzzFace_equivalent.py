@@ -114,7 +114,7 @@ class Var(Res):
 
 
 with schemdraw.Drawing() as d:
-    d.config(fontsize=font_size, font=font_name, lw=1.25) 
+    d.config(fontsize=font_size, font=font_name, lw=1) 
     
     # 入力
     IN = elm.Dot(open=True).label('input', loc='left')
@@ -141,7 +141,7 @@ with schemdraw.Drawing() as d:
     Lie2 = elm.Line().right(3).at(Lc1.start).dot()
     Rie2 = Res().down(3).label('$r_{ie2}$',loc='bottom')
     Lie2g = elm.Line().right(1.5).dot()
-    Re2 = Var().down().toy(INg.start).label('$R_{e2}$',loc='bottom',ofst=(.3,-.25)).reverse()
+    Re2 = Var().down().toy(INg.start).label('$R_{E2}$',loc='bottom',ofst=(.3,-.25)).reverse()
     Lg3 = elm.Line().left().tox(Lg2.start).dot()
 
     elm.Line().right(1.5).at(Lie2g.end).dot()
@@ -149,10 +149,10 @@ with schemdraw.Drawing() as d:
 
     # 出力
     elm.Line().right(4).dot().at(Cr2.end)
-    Rc2 = Res().down().toy(INg.start).label('$R_{S}$\n$= R_{C2}//RV_{2}$',loc='bottom').dot()
+    Rc2 = Res().down().toy(INg.start).label('$R_{S}$',loc='bottom',fontsize=font_size,ofst=(-.2,.1)).label('$= R_{C2b}+R_{C2t}\\,//\\,RV_{2}$',loc='bottom',fontsize=font_size-2,ofst=(.2,.2)).dot()
     Lg4 = elm.Line().left().tox(Lg3.start).dot()
 
-    elm.Line().right(3).at(Rc2.start)
+    elm.Line().right(4).at(Rc2.start)
     OUT = elm.Dot(open=True).label('output',loc='right')
     Lg5 = elm.Line().right().at(Lg4.start).tox(OUT.start)
     OUTg = elm.Dot(open=True)

@@ -1,7 +1,11 @@
 import schemdraw
 import schemdraw.elements as elm
+import matplotlib
+matplotlib.use('Agg')  # GUIを使わず、ファイル保存のみ行う
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
+import warnings
+warnings.filterwarnings('ignore', message='.*non-interactive.*')
 
 from schemdraw import elements as elm
 from schemdraw.segments import Segment, SegmentCircle
@@ -90,15 +94,31 @@ class Pot(Res):
             arrow='->', arrowwidth=self.params['arrowwidth'],
             arrowlength=self.params['arrowlength']))
         
+class Var(Res):
+    _element_defaults = {
+        'arrowwidth': .12,
+        'arrowlength': .2,
+        'arrow_lw': None,
+        'arrow_color': None,
+        }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.segments.append(
+            Segment([(.75*resw, -resh*1.5), (5.25*resw, resw*2.5)],
+            arrow='->', arrowwidth=self.params['arrowwidth'],
+            arrowlength=self.params['arrowlength'],
+            lw=self.params['arrow_lw'],
+            color=self.params['arrow_color']
+            ))
 # =========================
 
 
 with schemdraw.Drawing() as d:
-    d.config(fontsize=font_size, font=font_name, lw=1.25) 
+    d.config(fontsize=font_size, font=font_name, lw=1) 
     
     # 入力
-    elm.Dot(open=True).label('Input', loc='left')
-    C1 = elm.Capacitor2(polar=True).reverse().right(3).label('$C_{in}$', loc='top').label('1μF',loc='bottom')
+    elm.Dot(open=True).label('input', loc='left')
+    C1 = elm.Capacitor2(polar=True).reverse().right(3).label('$C_{in}$', loc='top') # .label('1μF',loc='bottom')
     elm.Dot().label('$V_{B1}$',loc='top')
     LB1 = elm.Line().right(2)
 
@@ -109,39 +129,39 @@ with schemdraw.Drawing() as d:
     elm.Line().up(0.5).at(Q1.collector)
     elm.Dot().label('$V_{C1}$',loc='left')
 
-    R1 = Res().up(4).label('$R_{C1}$\n33k',loc='bottom')
-    Vcc(lead=False).label('$V_{CC}$\n+9V',loc='top')
+    R1 = Res().up(4).label('$R_{C1}$',loc='bottom') # \n33k
+    Vcc(lead=False).label('$V_{CC}$',loc='top') # \n+9V
 
     LE2 = elm.Line().right(3).at(R1.start)
     Q2 = elm.BjtNpn(circle=True).anchor('base').theta(0).label('$Q_2$',loc='right')
     elm.Line().up(.5).at(Q2.collector)
     elm.Dot().label('$V_{C2}$',loc='right')
 
-    R3 = Res().up(3).label('$R_{C2b}$\n8.2k',loc='bottom').dot()
+    R3 = Res().up(3).label('$R_{C2b}$',loc='bottom').dot() # \n8.2k
     # elm.Line().up(.5).dot()
-    R2 = Res().up(3).label('$R_{C2t}$\n470',loc='bottom')
-    Vcc(lead=False).label('$V_{CC}$\n+9V',loc='top')
+    R2 = Res().up(3).label('$R_{C2t}$',loc='bottom') # \n470
+    Vcc(lead=False).label('$V_{CC}$',loc='top') # \n+9V
 
     L2e = elm.Line().down(3).at(Q2.emitter)
     elm.Dot().label('$V_{E2}$',loc='right')
 
-    RV1 = Pot().down(3).label('$RV_{1}$\nB1k',loc='top')
+    RV1 = Pot().down(3).label('$RV_{1}$',loc='top') # \nB1k
     # elm.Line().down(2)
     elm.GroundSignal(lead=False)
 
     elm.Line().right(1).at(RV1.tap)
-    C2 = elm.Capacitor2(polar=True).down(1).label('$C_{E2}$\n20μF',loc='bottom')
+    C2 = elm.Capacitor2(polar=True).down(1).label('$C_{E2}$',loc='bottom') # \n20μF
     elm.Line().tox(RV1.end).dot()
 
-    R4 = Res().at(RV1.start).tox(C1.end).label('$R_{f}$',loc='top').label('100k',loc='bottom')
+    R4 = Res().at(RV1.start).tox(C1.end).label('$R_{f}$',loc='top') # .label('100k',loc='bottom')
     elm.Line().toy(C1.end)
 
-    C3 = elm.Capacitor().right(4).at(R2.start).label('$C_{out}$',loc='top').label('0.01μF',loc='bottom')
-    RV2 = Pot().down(3).label('$RV_{2}$\nA500k',ofst=(-1,-.5),loc='bottom')
+    C3 = elm.Capacitor().right(4).at(R2.start).label('$C_{out}$',loc='top') # .label('0.01μF',loc='bottom')
+    RV2 = Pot().down(3).label('$RV_{2}$',ofst=(-.5,-.5),loc='bottom') # \nA500k
     elm.GroundSignal(lead=False)
 
     elm.Line().at(RV2.tap).right(1)
-    elm.Dot(open=True).label('Output', loc='right')
+    elm.Dot(open=True).label('output', loc='right')
 
     
     """
@@ -159,6 +179,6 @@ with schemdraw.Drawing() as d:
 
 
     # 保存
-    d.save('FuzzFace.svg', dpi=300)
-    d.save('FuzzFace.png', dpi=300, transparent=False)
+    d.save('FuzzFace-Classic.svg', dpi=300)
+    d.save('FuzzFace-Classic.png', dpi=300, transparent=False)
     print("FuzzFace images has been exported.")
