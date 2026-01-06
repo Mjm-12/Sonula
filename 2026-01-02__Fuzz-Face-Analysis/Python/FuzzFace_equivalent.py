@@ -135,14 +135,14 @@ with schemdraw.Drawing() as d:
     Lg2 = elm.Line().left().tox(Lg1.start).dot()
 
     # Q2周辺
-    Lie2 = elm.Line().right(3).at(Lc1.start).dot()
-    Rie2 = Res().down(3).label('$r_{ie2}$',loc='bottom')
+    Lie2 = elm.Line().right(3).at(Lc1.start)
+    Rie2 = Res().down(2.5).label('$r_{ie2}$',loc='bottom')
     Lie2g = elm.Line().right(1.5).dot()
     Re2 = Var().down().toy(INg.start).label('$R_{E2}$',loc='bottom',ofst=(.3,-.25)).reverse()
     Lg3 = elm.Line().left().tox(Lg2.start).dot()
 
     elm.Line().right(1.5).at(Lie2g.end).dot()
-    Cr2 = elm.SourceI().up(3).reverse().label('$h_{fe2} \\cdot i_{b2}$',color='red')
+    Cr2 = elm.SourceI().up(2.5).reverse().label('$h_{fe2} \\cdot i_{b2}$',color='red')
 
     # 出力
     elm.Line().right(4).at(Cr2.end)
